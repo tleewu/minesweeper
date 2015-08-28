@@ -1,64 +1,85 @@
-class Minesweeper
+require 'yaml'
+require 'byebug'
 
+class Minesweeper
+  attr_reader :board
   def initialize(board)
     @board = board
     @display = Array.new(9){Array.new(9)}
+    @over = false
   end
 
   def play
     #until game over?
+    #display board, then prompt player to move
+    #then reveal a square/squares on @display
+    until @over
+      show
 
-    #prompt player to move
-    #player makes a move
-    #reveal a square/squares on @display
-    until self.won?
       row, col, mark = prompt
-      if mark == "F"
+      if mark == "f"
         @display[row][col] = "F"
+      elsif mark == "s"
+        File.open("minesweeper_save.yml", "w") do |f|
+          f.puts(self.to_yaml)
+          f.close()
+        end
+
+        exit 0
       else
-        reveal([row, col])
-      end
-      @display.each do |row|
-        print row
-        puts " "
+        reveal([row, col]) #just reveal on display
       end
 
+      puts "Game Won!" if won?
     end
   end
 
   def show
-    @display
+    @display.each_with_index do |row, idx|
+      print idx.to_s + " "
+      print row
+      puts " "
+    end
   end
 
   def reveal(pos)
     square =  @board.grid[pos[0]][pos[1]]
 
+    # if a bomb, game over
     if square == "*"
-      return "Game Over"
+
+      @display[pos[0]][pos[1]] = "*"
+      show
+      print "GAME OVER"
+      sleep(5)
+      @over = true
 
     # if a number, don't recurse
     elsif square != 0
       @display[pos[0]][pos[1]] = square.to_s
-    else #0 or blank case
-      #go to each adjacent square, calling with reveal(new pos)
-      # function that gets positions_num generates array called neighbors
-      #neighbors.each do |pos|
-      #check display
-        #reveal (pos)
-      #end
-      #then call reveal on neighbors if NOT revealed
-        @display[pos[0]][pos[1]] = " "
-        Board.neighbors(pos).each do |move|
-          reveal(move) if @display[move[0]][move[1]].nil?
-        end
+
+    # if 0 or blank case
+    else
+      #go through each adjacent square, calling with reveal()
+      # if neighbors have NOT been revealed
+      @display[pos[0]][pos[1]] = " "
+      Board.neighbors(pos).each do |move|
+        reveal(move) if @display[move[0]][move[1]].nil?
+      end
     end
-
-
   end
 
+  def won? #if every NON-bomb is revealed
+    @display.each_with_index do |row, idx|
+      row.each_with_index do |square, idx2|
+        #return false if square is covered AND it is a number/empty space
+#debugger
+        return false if (square.nil? || square == 'F') && @board.grid[idx][idx2] != "*"
+      end
+    end
 
-  def won?
-    false
+    @over = true
+    return true
   end
 
   def prompt
@@ -66,13 +87,13 @@ class Minesweeper
     row = gets.chomp.to_i
     print "Pick a Col: "
     col = gets.chomp.to_i
-    print "Pick a Mark: (F/R)"
-    mark = gets.chomp
+    print "Pick a Mark: (f/r/s)"
+    mark = gets.chomp.downcase
 
     return row, col, mark
   end
 
-end
+end #end Minesweeper class
 
 class Board
   attr_reader :grid
@@ -82,42 +103,31 @@ class Board
 
     #populate bombs
     10.times {
-      num = rand(0..80)
-      row = num / 9
-      col = num % 9
-      while !@grid[row][col].nil?
-         num = rand(0..80)
-         row = num / 9
-         col = num % 9
+      loop do
+        num = rand(0..80)
+        row = num / 9
+        col = num % 9
+        if @grid[row][col].nil?
+          @grid[row][col] = "*"
+          break
+        end
       end
-      @grid[row][col] = "*"
     }
 
     #populate numbers
     @grid.each_with_index do |row, idx|
       row.each_with_index do |col, idx2|
-        if @grid[idx][idx2] != "*"
-          @grid[idx][idx2] = count_bomb([idx,idx2])
-        end
+        @grid[idx][idx2] = count_bomb([idx,idx2]) if @grid[idx][idx2] != "*"
       end
     end
-  end
 
-  def player_move(pos)
-    if @grid[pos[0]][pos[1]] == "*"
-      return "GAME OVER"
-    end
   end
 
   def count_bomb (pos) #pos is NOT bomb
     count = 0
 
-    (-1..1).each do |row|
-      (-1..1).each do |col|
-        if (0..8).include?(pos[0]+row) && (0..8).include?(pos[1]+col)
-          count += 1 if @grid[pos[0]+row][pos[1]+col] == "*"
-        end
-      end
+    Board.neighbors(pos).each do |move|
+      count += 1 if @grid[move[0]][move[1]] == "*"
     end
 
     count
@@ -137,10 +147,15 @@ class Board
     neighbors
   end
 
+end #end Board class
 
-end
 
 if __FILE__ == $PROGRAM_NAME
-  a =Minesweeper.new(Board.new)
-  a.play
+  if ARGV[0]
+    YAML.load_file(ARGV.shift).play
+  else
+    game = Minesweeper.new(Board.new)
+    p game.board.grid
+    game.play
+  end
 end
