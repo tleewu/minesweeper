@@ -5,7 +5,7 @@ class Minesweeper
   attr_reader :board
   def initialize(board)
     @board = board
-    @display = Array.new(9){Array.new(9)}
+    @display = Array.new(board.size){Array.new(board.size)}
     @over = false
   end
 
@@ -19,6 +19,7 @@ class Minesweeper
       row, col, mark = prompt
       if mark == "f"
         @display[row][col] = "F"
+
       elsif mark == "s"
         File.open("minesweeper_save.yml", "w") do |f|
           f.puts(self.to_yaml)
@@ -36,10 +37,10 @@ class Minesweeper
 
   def show
     @display.each_with_index do |row, idx|
-      print idx.to_s + " "
-      print row
-      puts " "
+      print row.to_s + " " + idx.to_s + "\n"
     end
+    (0..(board.size-1)).each {|num| print ("%3s" % num.to_s) + "  "}
+    puts " "
   end
 
   def reveal(pos)
@@ -50,7 +51,7 @@ class Minesweeper
 
       @display[pos[0]][pos[1]] = "*"
       show
-      print "GAME OVER"
+      puts "GAME OVER"
       sleep(5)
       @over = true
 
@@ -63,7 +64,7 @@ class Minesweeper
       #go through each adjacent square, calling with reveal()
       # if neighbors have NOT been revealed
       @display[pos[0]][pos[1]] = " "
-      Board.neighbors(pos).each do |move|
+      Board.neighbors(pos, board.size).each do |move|
         reveal(move) if @display[move[0]][move[1]].nil?
       end
     end
@@ -96,17 +97,19 @@ class Minesweeper
 end #end Minesweeper class
 
 class Board
-  attr_reader :grid
+  attr_reader :grid, :size, :mine_count
 
-  def initialize
-    @grid = Array.new(9){Array.new(9)}
+  def initialize(size = 9, mine_count = 10)
+    @size = size
+    @mine_count = mine_count
+    @grid = Array.new(size) { Array.new(size) }
 
     #populate bombs
-    10.times {
+    mine_count.times {
       loop do
-        num = rand(0..80)
-        row = num / 9
-        col = num % 9
+        num = rand(0..(size*size-1))
+        row = num / size
+        col = num % size
         if @grid[row][col].nil?
           @grid[row][col] = "*"
           break
@@ -126,19 +129,19 @@ class Board
   def count_bomb (pos) #pos is NOT bomb
     count = 0
 
-    Board.neighbors(pos).each do |move|
+    Board.neighbors(pos, size).each do |move|
       count += 1 if @grid[move[0]][move[1]] == "*"
     end
 
     count
   end
 
-  def self.neighbors(pos)
+  def self.neighbors(pos, size)
     neighbors = []
 
     (-1..1).each do |row|
       (-1..1).each do |col|
-        if (0..8).include?(pos[0]+row) && (0..8).include?(pos[1]+col)
+        if (0..(size-1)).include?(pos[0]+row) && (0..(size-1)).include?(pos[1]+col)
           neighbors << [pos[0]+row,pos[1]+col]
         end
       end
@@ -154,8 +157,9 @@ if __FILE__ == $PROGRAM_NAME
   if ARGV[0]
     YAML.load_file(ARGV.shift).play
   else
-    game = Minesweeper.new(Board.new)
-    p game.board.grid
+    size, mine_count = 16, 40
+    game = Minesweeper.new(Board.new(size, mine_count))
+    #p game.board.grid
     game.play
   end
 end
