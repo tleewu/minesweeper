@@ -11,9 +11,23 @@ class Minesweeper
     #prompt player to move
     #player makes a move
     #reveal a square/squares on @display
-    row, col = prompt
-    reveal([row, col])
+    until self.won?
+      row, col, mark = prompt
+      if mark == "F"
+        @display[row][col] = "F"
+      else
+        reveal([row, col])
+      end
+      @display.each do |row|
+        print row
+        puts " "
+      end
 
+    end
+  end
+
+  def show
+    @display
   end
 
   def reveal(pos)
@@ -35,24 +49,27 @@ class Minesweeper
       #then call reveal on neighbors if NOT revealed
         @display[pos[0]][pos[1]] = " "
         Board.neighbors(pos).each do |move|
-
           reveal(move) if @display[move[0]][move[1]].nil?
-
         end
-
     end
-
 
 
   end
 
-  def prompt
-    "Pick a Row: "
-    row = gets.chomp
-    "Pick a Col: "
-    col = gets.chomp
 
-    return row, col
+  def won?
+    false
+  end
+
+  def prompt
+    print "Pick a Row: "
+    row = gets.chomp.to_i
+    print "Pick a Col: "
+    col = gets.chomp.to_i
+    print "Pick a Mark: (F/R)"
+    mark = gets.chomp
+
+    return row, col, mark
   end
 
 end
@@ -121,4 +138,9 @@ class Board
   end
 
 
+end
+
+if __FILE__ == $PROGRAM_NAME
+  a =Minesweeper.new(Board.new)
+  a.play
 end
